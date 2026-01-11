@@ -70,7 +70,7 @@ use std::{collections::BTreeMap, path::Path};
 use crate::{
     api::google_translate,
     i18n::autogen_cache::{is_match_sha256, load_autogen, update_autogen_cache},
-    utils::write_locale_file,
+    utils::{verify_locales, write_locale_file},
 };
 
 mod api;
@@ -99,13 +99,22 @@ pub fn translate(
     source_locale: &str,
     target_locales: Vec<&str>,
     cache: bool,
-) -> Result<(), String> {
+) -> Result<(), &'static str> {
     //verify that the sha256 checksums are different then only proceed
     let locale_path = Path::new(locale_directory)
         .normalize()
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| "Error in path normalization")?;
+
+    let verify_locales = verify_locales(locale_path.as_path(), source_locale, &target_locales);
 
     let mut autogen = load_autogen();
+
+    if target_locales.is_empty() {
+        info!("Already on latest");
+        autogen.data.clear();
+        let _ = update_autogen_cache(&autogen);
+        return Ok(());
+    }
 
     let sha256_res = is_match_sha256(
         locale_path.as_path(),
@@ -113,9 +122,9 @@ pub fn translate(
         &autogen.sha256.unwrap_or_default(),
     );
 
-    if let Some(sha2) = sha256_res {
+    if sha256_res.is_some() || verify_locales.is_err() {
         //update the sha2
-        autogen.sha256 = Some(sha2);
+        autogen.sha256 = sha256_res;
 
         //Preload google api key from env
         dotenvy::dotenv().ok();
@@ -248,7 +257,7 @@ pub fn translate(
 
             Ok(())
         } else {
-            Err("Could not find source locale data".to_string())
+            Err("Could not find source locale data")
         }
     } else {
         info!("Already on latest");

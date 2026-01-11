@@ -9,6 +9,8 @@ use std::{
 use normpath::BasePathBuf;
 use serde_json::{Value, json};
 
+use crate::i18n::autogen_cache::{load_autogen, update_autogen_cache};
+
 pub fn write_locale_file(
     locale_dir: &BasePathBuf,
     data: &BTreeMap<String, String>,
@@ -105,6 +107,88 @@ pub fn get_source_file_path(locale_path: &Path, source_locale: &str) -> Option<P
     }
 
     path_buf
+}
+
+///check things list to re-translate data if
+/// - whether all the target languages specified exist
+/// eg: if all the languages specified already exist in the locale dir then no retranslate
+/// - whether there is addition or subtraction of languages
+/// eg: if new language is added then re-translate
+///
+///
+/// If verification fails retranslate
+pub fn verify_locales(
+    locale_path: &Path,
+    source_locale: &str,
+    target_locales: &Vec<&str>,
+) -> Result<(), &'static str> {
+    let source_locale_path_res = get_source_file_path(locale_path, source_locale);
+
+    if let Some(source_locale_path) = source_locale_path_res {
+        let ext = source_locale_path
+            .extension()
+            .unwrap_or(OsStr::new("json"))
+            .to_str()
+            .unwrap_or("json");
+
+        let target_locales_with_ext: Vec<String> = target_locales
+            .iter()
+            .map(|t| format!("{t}.{ext}"))
+            .collect();
+
+        let read_dir = fs::read_dir(locale_path).map_err(|_| "Read Dir Error")?;
+
+        let mut file_names_dir = Vec::new();
+
+        let source_filename = source_locale_path
+            .file_name()
+            .unwrap_or_default()
+            .display()
+            .to_string();
+
+        for entry in read_dir {
+            if let Ok(dir) = entry {
+                //Check if the files in directory are in target locales
+                //if not in target locales delete them
+                let dir_file_name = dir.file_name().display().to_string();
+                if !target_locales_with_ext.contains(&dir_file_name)
+                    && dir_file_name != source_filename
+                {
+                    let _ = fs::remove_file(dir.path());
+
+                    //remove locale data from autogen also
+                    let mut autogen = load_autogen();
+                    let file_stem = dir
+                        .path()
+                        .file_stem()
+                        .unwrap_or_default()
+                        .display()
+                        .to_string();
+                    autogen.data.remove(&file_stem);
+                    let _ = update_autogen_cache(&autogen);
+                } else {
+                    file_names_dir.push(dir_file_name);
+                }
+            }
+        }
+
+        let mut should_retranslate = false;
+
+        //Now check if new locales are specified that do not exist in the directory
+        for target_locale_ext in target_locales_with_ext {
+            if !file_names_dir.contains(&target_locale_ext) {
+                should_retranslate = true;
+            }
+        }
+
+        if should_retranslate {
+            Err("Files mismatch..retranslate")
+        } else {
+            Ok(())
+        }
+    } else {
+        return Err("No source file path");
+    }
 }
 
 #[test]

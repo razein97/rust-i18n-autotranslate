@@ -33,7 +33,7 @@ pub fn translate_v2(
     source_data: &Vec<&str>,
     source_lang: &str,
     target_lang: &str,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, &'static str> {
     let mut translated: Vec<String> = Vec::with_capacity(source_data.len());
     let api_url = "https://translation.googleapis.com/language/translate/v2";
 
@@ -67,13 +67,13 @@ pub fn translate_v2(
                                     translated.push(decoded.to_string());
                                 }
                             }
-                            Err(e) => return Err(e.to_string()),
+                            Err(_) => return Err("Could not decode json"),
                         }
                     } else {
-                        return Err("Could not translate".to_string());
+                        return Err("Could not translate");
                     }
                 }
-                Err(e) => return Err(e.to_string()),
+                Err(_) => return Err("Could not query google translate api"),
             }
         }
         Ok(translated)
@@ -100,10 +100,10 @@ pub fn translate_v2(
                         let decoded = decode_html_entities(&t_text);
                         translated.push(decoded.to_string())
                     } else {
-                        return Err("Invalid request".to_string());
+                        return Err("Invalid request");
                     }
                 }
-                Err(e) => return Err(e.to_string()),
+                Err(_) => return Err("Could not query google translate api"),
             }
         }
 
@@ -111,12 +111,12 @@ pub fn translate_v2(
     }
 }
 
-fn get_translated_text(html: &str) -> Result<String, String> {
+fn get_translated_text(html: &str) -> Result<String, &'static str> {
     // extracting translation text
     let pattern = Regex::new(r#"(?s)class="(?:t0|result-container)">(.*?)<"#).unwrap();
     if let Some(captures) = pattern.captures(html) {
         Ok(html_escape::decode_html_entities(&captures[1]).to_string())
     } else {
-        Err("Invalid request".to_string())
+        Err("Invalid request")
     }
 }

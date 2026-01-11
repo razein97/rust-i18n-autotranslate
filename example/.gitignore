@@ -27,5 +27,5 @@ target
 
 
 .env
-.autotranslate_gen.json
+.autogen.toml
 *.lock

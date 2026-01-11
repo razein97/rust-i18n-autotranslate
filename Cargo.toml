@@ -1,17 +1,18 @@
 [package]
 name = "rust-i18n-autotranslate"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 authors = ["Rohit Singh <razein@wizql.com>"]
 description = "Auto translate locales build time and runtime"
 repository = "https://github.com/razein97/rust-i18n-autotranslate"
 homepage = "https://github.com/razein97/rust-i18n-autotranslate"
+documentation = "https://docs.rs/rust-i18n-autotranslate"
 license = "MIT"
+rust-version = "1.89.0"
 keywords = ["translate", "google-translate", "i18n", "autotranslate"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
