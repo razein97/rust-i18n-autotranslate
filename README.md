@@ -1,4 +1,7 @@
-# rust-i18n-autotranslate
+# rust-i18n-autotranslate [![Crates.io][crates-badge]][crates-url]
+
+[crates-badge]: https://img.shields.io/crates/v/rust-i18n-autotranslate
+[crates-url]: https://crates.io/crates/rust-i18n-autotranslate
 
 Auto translate locales build time and runtime.
 
