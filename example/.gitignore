@@ -28,3 +28,4 @@ target
 
 .env
 .autotranslate_gen.json
+*.lock
