@@ -2,6 +2,7 @@
 
 use std::env;
 
+use html_escape::decode_html_entities;
 use log::{info, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,9 @@ pub fn translate_v2(
                         match data_res {
                             Ok(data) => {
                                 for translated_text in data.data.translations {
-                                    translated.push(translated_text.translated_text);
+                                    let decoded =
+                                        decode_html_entities(&translated_text.translated_text);
+                                    translated.push(decoded.to_string());
                                 }
                             }
                             Err(e) => return Err(e.to_string()),
@@ -94,7 +97,8 @@ pub fn translate_v2(
                             &response.body_mut().read_to_string().unwrap_or_default(),
                         )?;
 
-                        translated.push(t_text)
+                        let decoded = decode_html_entities(&t_text);
+                        translated.push(decoded.to_string())
                     } else {
                         return Err("Invalid request".to_string());
                     }

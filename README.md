@@ -19,7 +19,7 @@ Add dependencies in your cargo.toml
 
 ```rust
 [dependencies]
-rust-i18n-autotranslate = "0.1.0"
+rust-i18n-autotranslate = "0.1"
 ```
 
 The crate uses env variables to set the api key:
