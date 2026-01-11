@@ -100,7 +100,7 @@ mod utils;
 ///
 /// translate(locale_dir, source_language, target_languages.to_vec(), use_cache).unwrap();
 /// ```
-pub async fn translate(
+pub fn translate(
     locale_directory: &str,
     source_locale: &str,
     target_locales: Vec<&str>,
