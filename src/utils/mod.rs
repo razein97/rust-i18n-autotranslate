@@ -35,6 +35,7 @@ pub fn write_locale_file(
         let file = OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(true)
             .open(file_path)
             .unwrap();
         let mut writer = BufWriter::new(file);
