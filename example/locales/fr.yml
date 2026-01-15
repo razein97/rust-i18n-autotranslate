@@ -1,11 +1,14 @@
 menu:
-  icon_menu: Menu par icônes
+  icon_menu: Menu Icône
   submenu: Sous-menu
-  submenu_item_1: Sous-menu, élément 1
-  submenu_item_2: Sous-menu, élément 2
+  submenu_item_1: Sous-menu Point 1
+  submenu_item_2: Sous-menu Point 2
   text_menu: Changer de langue
 root:
-  language: Anglais
+  duplicate: Bonjour
+  item:
+    duplicate1: Bonjour
+  language: Changements climatiques
   native_menu: Menu natif
-  para: Les scientifiques ont appris à compléter la vue de multiples façons. Sur le mont Palomar, ils placent devant la pupille minuscule de l'œil un grand monocle de 5 mètres de diamètre, leur permettant de voir 2 000 fois plus loin dans les profondeurs de l'espace. Ils observent également, à travers un microscope, une goutte d'eau ou de sang et grossissent jusqu'à 2 000 fois le diamètre des êtres vivants qui s'y trouvent, dont beaucoup comptent parmi les ennemis les plus dangereux de l'homme. Pour observer des événements lointains sur Terre, ils utilisent une partie des ondes électromagnétiques auparavant perdues afin de transmettre des images télévisées qu'ils recréent sous forme de lumière en faisant vibrer de minuscules cristaux sur un écran à l'aide d'électrons dans le vide. Enfin, ils peuvent faire revivre des événements anciens et lointains sous forme de films en couleur, en disposant des atomes d'argent et des molécules absorbant les couleurs de manière à contraindre les ondes lumineuses à reproduire les structures de la réalité originelle. Ou, si l'on veut observer le cœur d'une pièce d'acier moulée ou la poitrine d'un enfant blessé, on envoie l'information sous forme d'un faisceau de rayons X à ondes courtes pénétrantes, puis on la reconvertit en images visibles sur un écran ou sous forme de photographie. Ainsi, presque tous les types de rayonnement électromagnétique découverts à ce jour ont été utilisés pour étendre notre vision d'une manière ou d'une autre.
-  select_language: 'Sélectionnez la langue :'
+  para: Je suis une légende
+  select_language: 'Sélectionner la langue & #160;:'
