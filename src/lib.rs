@@ -31,9 +31,12 @@
 //!
 //! # Current support
 //!  - Google Translate (Cloud Translate - Fallback to google translate web)
-//!  - Deepl (Planned)
+//!  - DeepL (Cloud Translate - Fallback to deeplx)
+//!  - DeepLX (Needs installation [Install DeepLX](<https://deeplx.owo.network/install/>))
+//!  - LibreTranslate (Fallback - [Install Self Hosted](<https://docs.libretranslate.com/#self-hosted>)))
 //!  - Yandex (Planned)
 //!  - aws ML (Planned)
+//!
 //!
 //! # Usage
 //!
@@ -41,22 +44,28 @@
 //!
 //! Create a `.env` file in the root of your project and add the following key.
 //!
-//! GOOGLE_API_KEY = "xyz"
+//! The crate uses env variables to set the api key:
 //!
-//! [How to generate google api key](<https://translatepress.com/docs/automatic-translation/generate-google-api-key/>)
+//!- **GOOGLE_API_KEY = "xyz"** [How to generate google api key](<https://translatepress.com/docs/automatic-translation/generate-google-api-key/>)
+//!- **DEEPL_FREE_API_KEY = "xyz"**
+//!- **DEEPL_PRO_API_KEY = "xyz"**
+//!- **LIBRE_TRANSLATE_API_KEY = "xyz"**
+//!
+//!
 //!
 //!
 //! Call the translate function directly to translate your locales
 //!
-//! ```rust
-//! use rust_i18n_autotranslate::translate;
+//! ```rust,no_run
+//! use rust_i18n_autotranslate::{translate, TranslationProvider};
 //!
 //! let locale_dir = "./locales";
 //! let source_language = "en";
-//! let target_languages = ["fr", "ko"]
+//! let target_languages = ["fr", "ko"];
 //! let use_cache = true;
+//! let provider = TranslationProvider::GOOGLE;
 //!
-//! translate(locale_dir, source_language, target_languages.to_vec(), use_cache).unwrap();
+//! translate(locale_dir, source_language, target_languages.to_vec(), use_cache, provider).unwrap();
 //! ```
 //!
 //!
@@ -68,7 +77,7 @@ use rust_i18n_support::load_locales;
 use std::{collections::BTreeMap, path::Path};
 
 use crate::{
-    api::google_translate,
+    api::translate_data,
     i18n::autogen_cache::{is_match_sha256, load_autogen, update_autogen_cache},
     utils::{verify_locales, write_locale_file},
 };
@@ -77,29 +86,54 @@ mod api;
 mod i18n;
 mod utils;
 
-/// Translate the source locale into multiple locales
+/// Providers available for translation
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum TranslationProvider {
+    ///Google Cloud Translation
+    #[default]
+    GOOGLE,
+    ///DeepL Cloud Translation
+    DEEPL,
+    ///LibreTranslate Translations
+    LIBRETRANSLATE,
+}
+
+/// Translate the source locale into multiple locales.
 ///
 /// Default output is json
+///
+/// Choose a translation api.
+///
+/// To use the paid api set any of the environment variable and select the appropriate provider
+///
+/// _Environment Variables:_
+///- GOOGLE_API_KEY="xxx"
+///- DEEPL_FREE_API_KEY="xxx"
+///- DEEPL_PRO_API_KEY="xxx"
+///- LIBRE_TRANSLATE_API_KEY="xxx"
+///`If both deepl api keys are set, priority is given to the free key`
 ///
 /// Cache: Use cache to save and reuse translations.
 ///
 /// Example:
-/// ```rust
-/// use rust_i18n_autotranslate::translate;
+/// ```rust,no_run
+/// use rust_i18n_autotranslate::{translate, TranslationProvider};
 ///
 /// let locale_dir = "./locales";
 /// let source_language = "en";
-/// let target_languages = ["fr", "ko"]
+/// let target_languages = ["fr", "ko"];
 /// let use_cache = true;
+/// let provider = TranslationProvider::GOOGLE;
 ///
-/// translate(locale_dir, source_language, target_languages.to_vec(), use_cache).unwrap();
+/// translate(locale_dir, source_language, target_languages.to_vec(), use_cache, provider).unwrap();
 /// ```
 pub fn translate(
     locale_directory: &str,
     source_locale: &str,
     target_locales: Vec<&str>,
     cache: bool,
-) -> Result<(), &'static str> {
+    provider: TranslationProvider,
+) -> Result<(), String> {
     //verify that the sha256 checksums are different then only proceed
     let locale_path = Path::new(locale_directory)
         .normalize()
@@ -141,8 +175,8 @@ pub fn translate(
                 for target_locale in target_locales {
                     let autogen_data = autogen.data.get(target_locale).cloned().unwrap_or_default();
 
-                    let mut keys = Vec::with_capacity(source_data.len());
-                    let mut values = Vec::with_capacity(source_data.len());
+                    let mut to_translate_keys = Vec::with_capacity(source_data.len());
+                    let mut to_translate_values = Vec::with_capacity(source_data.len());
                     let mut og_keys = Vec::with_capacity(source_data.len());
 
                     for (key, value) in source_data.iter() {
@@ -150,47 +184,75 @@ pub fn translate(
                         //maintain a seperate copy iter later
                         og_keys.push(key.as_str());
                         //if it doesnt exist in the autogen cache then send for translate
-                        if autogen_data.get(key).is_none() {
-                            keys.push(key.as_str());
-                            values.push(value.as_str());
+                        if autogen_data.get(value).is_none() {
+                            to_translate_keys.push(key.as_str());
+                            to_translate_values.push(value.as_str());
                         }
                     }
 
-                    let translated =
-                        google_translate::translate_v2(&values, source_locale, target_locale)?;
+                    let translated_values = translate_data(
+                        &provider,
+                        &to_translate_values,
+                        source_locale,
+                        target_locale,
+                    )?;
 
-                    //combine the translated
-                    if translated.len() == keys.len() {
-                        //Updating the autogen values
-                        //get the already present data
-                        let mut autogen_locale =
-                            autogen.data.get(target_locale).cloned().unwrap_or_default();
+                    //get the already present data
+                    let mut autogen_locale =
+                        autogen.data.get(target_locale).cloned().unwrap_or_default();
 
-                        for (index, value) in values.iter().enumerate() {
-                            autogen_locale.insert(value.to_string(), translated[index].clone());
-                        }
-                        //update the autogen value
-                        autogen
-                            .data
-                            .insert(target_locale.to_string(), autogen_locale);
+                    //combine the translated values
+                    let mut translated_kv = BTreeMap::new();
 
-                        //combine the translated values
-                        let mut translated_kv = BTreeMap::new();
-                        for n in 0..source_data.len() {
-                            //if equal then it was sent for translation else use cached value
-                            if let Some(og_key) = og_keys.get(n).cloned()
-                                && keys[n] != og_key
-                            {
-                                //cached value
-                                //add og key first
-                                let res = autogen_data.get(og_key);
+                    if translated_values.len() == to_translate_keys.len() {
+                        if translated_values.len() > 0 && to_translate_keys.len() > 0 {
+                            //Updating the autogen values
+                            for (index, value) in to_translate_values.iter().enumerate() {
+                                autogen_locale
+                                    .insert(value.to_string(), translated_values[index].clone());
+                            }
+                            //update the autogen value
+                            autogen
+                                .data
+                                .insert(target_locale.to_string(), autogen_locale.clone());
+
+                            for (og_key, og_value) in source_data.iter() {
+                                //if contains then it was sent for translation else use cached value
+                                if let Some(pos) =
+                                    to_translate_keys.iter().position(|x| x == &og_key)
+                                {
+                                    //translated value
+                                    // use the pos to get value from translated value
+                                    let translated_value = translated_values.get(pos);
+                                    if let Some(value) = translated_value {
+                                        translated_kv.insert(og_key.to_string(), value.to_string());
+                                    } else {
+                                        translated_kv
+                                            .insert(og_key.to_string(), og_value.to_string());
+                                    }
+                                } else {
+                                    //cached value
+                                    let res = autogen_locale.get(og_value);
+                                    if let Some(auto_data) = res {
+                                        translated_kv
+                                            .insert(og_key.to_string(), auto_data.to_string());
+                                    } else {
+                                        //default = not found = insert source value
+                                        translated_kv
+                                            .insert(og_key.to_string(), og_value.to_string());
+                                    }
+                                }
+                            }
+                        } else {
+                            //cached value
+                            for (og_key, og_value) in source_data.iter() {
+                                let res = autogen_locale.get(og_value);
                                 if let Some(auto_data) = res {
                                     translated_kv.insert(og_key.to_string(), auto_data.to_string());
+                                } else {
+                                    //default = not found = insert source value
+                                    translated_kv.insert(og_key.to_string(), og_value.to_string());
                                 }
-
-                                translated_kv.insert(keys[n].to_string(), translated[n].clone());
-                            } else {
-                                translated_kv.insert(keys[n].to_string(), translated[n].clone());
                             }
                         }
 
@@ -203,7 +265,7 @@ pub fn translate(
                         );
 
                         if let Err(e) = write_res {
-                            eprintln!("{e}");
+                            error!("{e}");
                         }
                     } else {
                         //some translations may have failed, so discard the whole translation
@@ -221,7 +283,7 @@ pub fn translate(
 
                 for target_locale in target_locales {
                     let translated =
-                        google_translate::translate_v2(&values, source_locale, target_locale)?;
+                        translate_data(&provider, &values, source_locale, target_locale)?;
 
                     //combine the translated
                     if translated.len() == keys.len() {
@@ -240,7 +302,7 @@ pub fn translate(
                         );
 
                         if let Err(e) = write_res {
-                            eprintln!("{e}");
+                            error!("{e}");
                         }
                     } else {
                         //some translations may have failed, so discard the whole translation
@@ -257,7 +319,7 @@ pub fn translate(
 
             Ok(())
         } else {
-            Err("Could not find source locale data")
+            Err("Could not find source locale data".to_string())
         }
     } else {
         info!("Already on latest");
