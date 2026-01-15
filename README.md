@@ -46,12 +46,13 @@ The crate uses env variables to set the api key:
 Call the translate function directly to translate your locales
 
 ```rust
-use rust_i18n_autotranslate::translate;
+use rust_i18n_autotranslate::{translate, TranslationProvider};
 
  let locale_dir = "./locales";
  let source_language = "en";
  let target_languages = ["fr", "ko"]
  let use_cache = true;
+ let provider = TranslationProvider::GOOGLE;
 
-translate(locale_dir, source_language, target_languages.to_vec(), use_cache).unwrap();
+ translate(locale_dir, source_language, target_languages.to_vec(), use_cache, provider).unwrap();
 ```
