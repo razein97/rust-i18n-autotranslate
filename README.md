@@ -7,8 +7,9 @@ Auto translate locales build time and runtime.
 
 ## Features
 
-- Does not run everytime. Tracks the source language file and only translates when it has changed.
+- Tracks the source language file and only translates when it has changed.
 - Set `cache = true` to reuse already translated words.
+- Normalizes languages to a supported language if supported.
 
 ## Current support
 
@@ -46,13 +47,22 @@ The crate uses env variables to set the api key:
 Call the translate function directly to translate your locales
 
 ```rust
-use rust_i18n_autotranslate::{translate, TranslationProvider};
+use rust_i18n_autotranslate::{
+    TranslationAPI,
+    config::{Config, TranslationProvider},
+};
 
- let locale_dir = "./locales";
- let source_language = "en";
- let target_languages = ["fr", "ko"]
- let use_cache = true;
- let provider = TranslationProvider::GOOGLE;
+fn main() {
+    env_logger::init();
 
- translate(locale_dir, source_language, target_languages.to_vec(), use_cache, provider).unwrap();
+    let cfg = Config::new()
+        .locales_directory("./locales")
+        .source_lang("en")
+        .add_target_lang("fr")
+        .use_cache(true)
+        .translation_provider(TranslationProvider::GOOGLE)
+        .build();
+
+    TranslationAPI::translate(cfg).unwrap()
+}
 ```

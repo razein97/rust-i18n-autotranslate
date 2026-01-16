@@ -66,6 +66,9 @@ pub fn translate_v2(
             }
 
             let response = ureq::get(api_url)
+                .config()
+                .http_status_as_error(false)
+                .build()
                 .query("key", &key)
                 .query("source", source_lang)
                 .query("target", target_lang)
@@ -74,58 +77,67 @@ pub fn translate_v2(
 
             match response {
                 Ok(mut translated_res) => {
-                    if translated_res.status() == StatusCode::OK {
-                        let data_res = translated_res.body_mut().read_json::<TranslatedResponse>();
+                    match translated_res.status() {
+                        StatusCode::OK => {
+                            let data_res =
+                                translated_res.body_mut().read_json::<TranslatedResponse>();
 
-                        match data_res {
-                            Ok(data) => {
-                                let g_translated_data = &data.data.translations;
+                            match data_res {
+                                Ok(data) => {
+                                    let g_translated_data = &data.data.translations;
 
-                                for (idx, translated_text) in
-                                    data.data.translations.iter().enumerate()
-                                {
-                                    let decoded_str =
-                                        decode_html_entities(&translated_text.translated_text);
+                                    for (idx, translated_text) in
+                                        data.data.translations.iter().enumerate()
+                                    {
+                                        let decoded_str =
+                                            decode_html_entities(&translated_text.translated_text);
 
-                                    let decoded = decoded_str.trim();
+                                        let decoded = decoded_str.trim();
 
-                                    //replace the empty value with one in pos
-                                    if decoded.is_empty() {
-                                        for mem_val in mem_cache.values() {
-                                            let pos = mem_val.iter().position(|x| x == &idx);
+                                        //replace the empty value with one in pos
+                                        if decoded.is_empty() {
+                                            for mem_val in mem_cache.values() {
+                                                let pos = mem_val.iter().position(|x| x == &idx);
 
-                                            if let Some(pos) = pos {
-                                                //We only want to use not 0 pos as it is the finder of the  translated value
-                                                if pos > 0 {
-                                                    let init_pos = mem_val[0];
-                                                    let translated_value =
-                                                        g_translated_data.get(init_pos);
-                                                    if let Some(translation) = translated_value {
-                                                        let init_pos_decoded = decode_html_entities(
-                                                            &translation.translated_text,
-                                                        );
-                                                        translated
-                                                            .push(init_pos_decoded.to_string());
-                                                        break;
+                                                if let Some(pos) = pos {
+                                                    //We only want to use not 0 pos as it is the finder of the  translated value
+                                                    if pos > 0 {
+                                                        let init_pos = mem_val[0];
+                                                        let translated_value =
+                                                            g_translated_data.get(init_pos);
+                                                        if let Some(translation) = translated_value
+                                                        {
+                                                            let init_pos_decoded =
+                                                                decode_html_entities(
+                                                                    &translation.translated_text,
+                                                                );
+                                                            translated
+                                                                .push(init_pos_decoded.to_string());
+                                                            break;
+                                                        } else {
+                                                            translated.push(decoded.to_string());
+                                                            break;
+                                                        }
                                                     } else {
                                                         translated.push(decoded.to_string());
                                                         break;
                                                     }
-                                                } else {
-                                                    translated.push(decoded.to_string());
-                                                    break;
                                                 }
                                             }
+                                        } else {
+                                            translated.push(decoded.to_string());
                                         }
-                                    } else {
-                                        translated.push(decoded.to_string());
                                     }
                                 }
+                                Err(e) => return Err(e.to_string()),
                             }
-                            Err(e) => return Err(e.to_string()),
                         }
-                    } else {
-                        return Err("Could not translate".to_string());
+                        _ => {
+                            return Err(translated_res
+                                .body_mut()
+                                .read_to_string()
+                                .unwrap_or_default());
+                        }
                     }
                 }
                 Err(e) => return Err(e.to_string()),

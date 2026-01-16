@@ -1,6 +1,6 @@
 [package]
 name = "rust-i18n-autotranslate"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 authors = ["Rohit Singh <razein@wizql.com>"]
 description = "Auto translate locales build time and runtime"
@@ -31,3 +31,4 @@ sha256 = "1.6.0"
 log = "0.4"
 html-escape = "0.2"
 regex = "1"
+thiserror = "2.0.17"

@@ -6,13 +6,30 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use normpath::BasePathBuf;
 use serde_json::{Value, json};
 
-use crate::i18n::autogen_cache::{load_autogen, update_autogen_cache};
+use crate::i18n::autogen_cache::Autogen;
+
+pub mod languages;
+pub mod translation_limiter;
+
+/// If it does not match then return the new sha256
+pub fn match_sha256(locale_path: &Path, source_lang: &str, autogen_sha: &str) -> Option<String> {
+    let res = get_source_file_path(locale_path, source_lang);
+    if let Some(item_path) = res {
+        let sha256_res = sha256::try_digest(item_path);
+        if let Ok(sha) = sha256_res {
+            if autogen_sha != sha { Some(sha) } else { None }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
 
 pub fn write_locale_file(
-    locale_dir: &BasePathBuf,
+    locale_dir: &PathBuf,
     data: &BTreeMap<String, String>,
     source_locale: &str,
     target_locale: &str,
@@ -121,7 +138,7 @@ pub fn get_source_file_path(locale_path: &Path, source_locale: &str) -> Option<P
 pub fn verify_locales(
     locale_path: &Path,
     source_locale: &str,
-    target_locales: &Vec<&str>,
+    target_locales: &Vec<String>,
 ) -> Result<(), &'static str> {
     let source_locale_path_res = get_source_file_path(locale_path, source_locale);
 
@@ -158,7 +175,7 @@ pub fn verify_locales(
                     let _ = fs::remove_file(dir.path());
 
                     //remove locale data from autogen also
-                    let mut autogen = load_autogen();
+                    let mut autogen = Autogen::load();
                     let file_stem = dir
                         .path()
                         .file_stem()
@@ -166,7 +183,7 @@ pub fn verify_locales(
                         .display()
                         .to_string();
                     autogen.data.remove(&file_stem);
-                    let _ = update_autogen_cache(&autogen);
+                    let _ = autogen.update_cache();
                 } else {
                     file_names_dir.push(dir_file_name);
                 }
@@ -202,7 +219,7 @@ fn test_locale_file() {
     let locales = Path::new("./locales");
     fs::create_dir_all(&locales).unwrap();
     fs::File::create(locales.join("en.json")).unwrap();
-    let locale_dir = &locales.normalize().unwrap();
+    let locale_dir = locales.normalize().unwrap().as_path().to_path_buf();
 
     assert_eq!(write_locale_file(&locale_dir, &data, "en", "fr"), Ok(()));
 
