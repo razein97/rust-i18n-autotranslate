@@ -51,18 +51,12 @@ pub fn normalize_lang(
     lang_code: &str,
 ) -> Result<String, LanguageNormalizeError<String>> {
     match provider {
-        TranslationProvider::GOOGLE => {
-            let lang_code_lowercase = lang_code.to_lowercase();
-            normalize(&lang_code_lowercase, &GOOGLE_TRANSLATE_LANG_CODES)
-        }
+        TranslationProvider::GOOGLE => normalize(&lang_code, &GOOGLE_TRANSLATE_LANG_CODES),
         TranslationProvider::DEEPL => {
             let lang_code_uppercase = lang_code.to_uppercase();
             normalize(&lang_code_uppercase, &DEEPL_LANG_CODES)
         }
-        TranslationProvider::LIBRETRANSLATE => {
-            let lang_code_lowercase = lang_code.to_lowercase();
-            normalize(&lang_code_lowercase, &LIBRE_TRANSLATE_LANG_CODES)
-        }
+        TranslationProvider::LIBRETRANSLATE => normalize(&lang_code, &LIBRE_TRANSLATE_LANG_CODES),
     }
 }
 
@@ -81,7 +75,7 @@ fn normalize(locale: &str, codes: &[&str]) -> Result<String, LanguageNormalizeEr
             let find_code = codes.iter().position(|x| x.contains(first));
 
             if let Some(found_code) = find_code {
-                let item = GOOGLE_TRANSLATE_LANG_CODES[found_code];
+                let item = codes[found_code];
                 Ok(item.to_string())
             } else {
                 Err(LanguageNormalizeError::Redaction(locale.to_string()))
